@@ -2,5 +2,12 @@
 name = "reap"
 version = "0.1.0"
 authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
+description = "A recycling heap"
+documentation = "https://docs.rs/reap"
+repository = "https://github.com/cpjreynolds/reap"
+homepage = "https://github.com/cpjreynolds/reap"
+readme = "README.md"
+license = "MIT"
+keywords = ["reap", "heap", "arena", "allocator", "alloc"]
 
 [dependencies]
