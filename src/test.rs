@@ -1,6 +1,7 @@
+extern crate typed_arena;
+
 use std::cell::Cell;
 use std::mem;
-use std::ptr;
 
 use super::{Reap, Rp};
 
@@ -13,22 +14,27 @@ impl<'a> Drop for DropTracker<'a> {
 
 struct Node<'a>(Option<Rp<Node<'a>>>, usize, DropTracker<'a>);
 
+// Simple convenience function for the number of chunks in the given `Reap`.
+fn n_chunks<T>(reap: &Reap<T>) -> usize {
+    reap.0.chunks.borrow().len()
+}
+
 #[test]
 fn reap_as_intended() {
     let drop_counter = Cell::new(0);
     let reap = Reap::with_capacity(2);
 
     let mut node = reap.allocate(Node(None, 1, DropTracker(&drop_counter)));
-    assert_eq!(reap.0.chunks.borrow().len(), 1);
+    assert_eq!(n_chunks(&reap), 1);
 
     node = reap.allocate(Node(Some(node), 2, DropTracker(&drop_counter)));
-    assert_eq!(reap.0.chunks.borrow().len(), 1);
+    assert_eq!(n_chunks(&reap), 1);
 
     node = reap.allocate(Node(Some(node), 3, DropTracker(&drop_counter)));
-    assert_eq!(reap.0.chunks.borrow().len(), 2);
+    assert_eq!(n_chunks(&reap), 2);
 
     node = reap.allocate(Node(Some(node), 4, DropTracker(&drop_counter)));
-    assert_eq!(reap.0.chunks.borrow().len(), 2);
+    assert_eq!(n_chunks(&reap), 2);
 
 
     assert_eq!(node.1, 4);
@@ -42,15 +48,15 @@ fn reap_as_intended() {
     assert_eq!(drop_counter.get(), 4);
 
     let mut node = reap.allocate(Node(None, 5, DropTracker(&drop_counter)));
-    assert_eq!(reap.0.chunks.borrow().len(), 2);
+    assert_eq!(n_chunks(&reap), 2);
 
     for i in 6..11 {
         node = reap.allocate(Node(Some(node), i, DropTracker(&drop_counter)));
-        assert_eq!(reap.0.chunks.borrow().len(), 2);
+        assert_eq!(n_chunks(&reap), 2);
     }
 
     node = reap.allocate(Node(Some(node), 11, DropTracker(&drop_counter)));
-    assert_eq!(reap.0.chunks.borrow().len(), 3);
+    assert_eq!(n_chunks(&reap), 3);
 
     assert_eq!(node.1, 11);
     assert_eq!(node.0.as_ref().unwrap().1, 10);
@@ -136,10 +142,24 @@ fn reap_as_intended() {
 #[test]
 fn test_zero_cap() {
     let reap = Reap::with_capacity(0);
-    assert_eq!(reap.0.chunks.borrow().len(), 0);
+    assert_eq!(n_chunks(&reap), 0);
 
     let a = reap.allocate(1);
     let b = reap.allocate(2);
     assert_eq!(*a, 1);
     assert_eq!(*b, 2);
+}
+
+struct ZeroSized;
+
+#[test]
+fn test_zero_sized_type() {
+    let reap = Reap::new();
+    let mut v = Vec::with_capacity(100);
+
+    for _ in 0..100 {
+        let alloc = reap.allocate(ZeroSized);
+        v.push(alloc);
+    }
+    assert_eq!(n_chunks(&reap), 0);
 }

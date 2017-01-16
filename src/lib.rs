@@ -219,13 +219,76 @@ pub struct Rp<T> {
 }
 
 impl<T> Rp<T> {
+    /// Constructs an `Rp` from a raw pointer.
+    ///
+    /// # Safety
+    ///
+    /// This function is highly unsafe and can lead to all sorts of laundry-eating bad if its
+    /// invariants are not maintained.
+    ///
+    /// * `ptr` **must** have been previously returned from a call to `Rp::into_raw`.
+    /// * `reap` **must** be the same `Reap` that allocated `ptr`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use reap::{Reap, Rp};
+    ///
+    /// let reap = Reap::new();
+    ///
+    /// let x = reap.allocate(101);
+    /// let (x_ptr, r) = Rp::into_raw(x);
+    ///
+    /// unsafe {
+    ///     // Convert back to an `Rp` to prevent leak.
+    ///     let x = Rp::from_raw(x_ptr, r);
+    ///     assert_eq!(*x, 101);
+    ///
+    ///     // Further calls to `Rc::from_raw(x_ptr, r)` would be memory unsafe.
+    /// }
+    ///
+    /// // `x` went out of scope above so the memory is considered free, so `x_ptr` is now dangling!
+    /// ```
     #[inline]
-    unsafe fn from_raw(ptr: *mut T, reap: Reap<T>) -> Rp<T> {
+    pub unsafe fn from_raw(ptr: *mut T, reap: Reap<T>) -> Rp<T> {
         Rp {
             ptr: ptr,
             reap: reap,
             _marker: marker::PhantomData,
         }
+    }
+
+    /// Consumes the `Rp`, returning the wrapped pointer and associated `Reap`.
+    ///
+    /// To avoid a memory leak the pointer must be converted back to an `Rp` using `Rp::from_raw`
+    /// with its associated `Reap`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use reap::{Reap, Rp};
+    ///
+    /// let reap = Reap::new();
+    ///
+    /// let x = reap.allocate(101);
+    /// let (x_ptr, r) = Rp::into_raw(x);
+    /// assert_eq!(unsafe { *x_ptr }, 101);
+    ///
+    /// unsafe {
+    ///     // Convert back to an `Rp` to prevent leak.
+    ///     let x = Rp::from_raw(x_ptr, r);
+    ///     assert_eq!(*x, 101);
+    /// }
+    ///
+    #[inline]
+    pub fn into_raw(mut this: Rp<T>) -> (*mut T, Reap<T>) {
+        let ptr = this.ptr;
+        // If there is another way to do this someone please tell me, this just feels wrong.
+        // I know I could just clone the `Reap` but I'd rather not unnecessarily increment the
+        // refcount.
+        let reap = unsafe { mem::replace(&mut this.reap, mem::uninitialized()) };
+        mem::forget(this);
+        (ptr, reap)
     }
 
     /// Returns a reference to this `Rp<T>`'s associated `Reap<T>`.

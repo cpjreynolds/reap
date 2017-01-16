@@ -2,7 +2,7 @@
 name = "reap"
 version = "0.1.0"
 authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
-description = "A recycling heap"
+description = "The reap, a typed allocator with heap and region semantics"
 documentation = "https://docs.rs/reap"
 repository = "https://github.com/cpjreynolds/reap"
 homepage = "https://github.com/cpjreynolds/reap"
@@ -11,3 +11,6 @@ license = "MIT"
 keywords = ["reap", "heap", "arena", "allocator", "alloc"]
 
 [dependencies]
+
+[dev-dependencies]
+typed-arena = "1.2.0"
