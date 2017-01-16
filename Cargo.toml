@@ -14,3 +14,4 @@ keywords = ["reap", "heap", "arena", "allocator", "alloc"]
 
 [dev-dependencies]
 typed-arena = "1.2.0"
+rand = "0.3.15"
